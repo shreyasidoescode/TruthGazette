@@ -6,100 +6,183 @@
     <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
+        * { box-sizing: border-box; }
         body {
             background: #d2c9b1 url('https://www.transparenttextures.com/patterns/aged-paper.png');
             font-family: 'Special Elite', serif;
             display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; margin: 0; overflow: hidden;
-            filter: grayscale(100%); transition: 1.5s ease;
+            height: 100vh; margin: 0; overflow: hidden;
+            filter: grayscale(100%); transition: 1.2s ease;
         }
+
+        /* Newspaper: Compacted to fit 100% Zoom without scrollbars */
         .newspaper {
-            background: #fff; width: 90%; max-width: 750px; padding: 40px 60px;
-            box-shadow: 0 15px 70px rgba(0,0,0,0.6);
+            background: #fff; 
+            width: 95%; max-width: 650px; 
+            height: auto;
+            max-height: 98vh; 
+            padding: 25px 45px;
+            box-shadow: 0 15px 60px rgba(0,0,0,0.5);
             position: relative; z-index: 10;
-            clip-path: polygon(0% 2%, 5% 0%, 10% 2%, 15% 0%, 20% 2%, 25% 0%, 30% 2%, 35% 0%, 40% 2%, 45% 0%, 50% 2%, 55% 0%, 60% 2%, 65% 0%, 70% 2%, 75% 0%, 80% 2%, 85% 0%, 90% 2%, 95% 0%, 100% 2%, 100% 98%, 95% 100%, 90% 98%, 85% 100%, 80% 98%, 75% 100%, 70% 98%, 65% 100%, 60% 98%, 55% 100%, 50% 98%, 45% 100%, 40% 98%, 35% 100%, 30% 98%, 25% 100%, 20% 98%, 15% 100%, 10% 98%, 5% 100%, 0% 98%);
+            overflow: hidden; /* Removed scrollbars */
+            clip-path: polygon(0% 1%, 5% 0%, 10% 1%, 15% 0%, 20% 1%, 25% 0%, 30% 1%, 35% 0%, 40% 1%, 45% 0%, 50% 1%, 55% 0%, 60% 1%, 65% 0%, 70% 1%, 75% 0%, 80% 1%, 85% 0%, 90% 1%, 95% 0%, 100% 1%, 100% 99%, 95% 100%, 90% 99%, 85% 100%, 80% 99%, 75% 100%, 70% 99%, 65% 100%, 60% 99%, 55% 100%, 50% 99%, 45% 100%, 40% 99%, 35% 100%, 30% 99%, 25% 100%, 20% 99%, 15% 100%, 10% 99%, 5% 100%, 0% 99%);
         }
+
         .header { text-align: center; border-bottom: 5px double #000; }
-        h1 { font-size: 3.8rem; margin: 0; letter-spacing: -3px; }
+        h1 { font-size: 2.8rem; margin: 0; letter-spacing: -2px; }
+        
         .sub-header {
             display: flex; justify-content: space-between; font-weight: bold;
-            padding: 5px 0; border-bottom: 2px solid #000; margin-bottom: 30px; font-size: 0.95rem;
+            padding: 3px 0; border-bottom: 2px solid #000; margin-bottom: 15px; font-size: 0.8rem;
         }
+
         textarea, input {
             width: 100%; background: transparent; border: none; border-bottom: 1px dashed #000;
-            font-family: 'Special Elite'; font-size: 1.3rem; margin-bottom: 25px; outline: none;
+            font-family: 'Special Elite'; font-size: 1.1rem; margin-bottom: 10px; outline: none;
         }
+
         button {
-            width: 100%; padding: 18px; background: #000; color: #fff; border: none;
-            font-family: 'Special Elite'; font-size: 1.6rem; cursor: pointer; transition: 0.2s;
+            width: 100%; padding: 12px; background: #000; color: #fff; border: none;
+            font-family: 'Special Elite'; font-size: 1.4rem; cursor: pointer;
         }
-        #loader {
+
+        /* Results: No Underlines, Compact Spacing */
+        .result-box { display: none; text-align: center; margin-top: 15px; border-top: 2px dashed #000; padding-top: 15px; }
+        .verdict-title { margin: 0 0 5px 0; font-size: 1.1rem; letter-spacing: 2px; text-decoration: none; }
+        .score-title { margin: 15px 0 5px 0; font-size: 1.1rem; letter-spacing: 2px; text-decoration: none; }
+        #resLabel { font-size: 2.8rem; margin: 0; }
+        #resScore { font-size: 4.5rem; margin: 0; line-height: 1; }
+
+        /* THE MAGNIFYING SYSTEM */
+        #loader-wrap {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(210, 201, 177, 0.9); z-index: 9999;
+            z-index: 9999; pointer-events: none; background: transparent;
         }
-        .result-box { display: none; text-align: center; margin-top: 30px; border-top: 2px dashed #000; padding-top: 20px; }
+        
+        #fisheye-lens {
+            position: fixed; width: 220px; height: 220px;
+            border-radius: 50%;
+            backdrop-filter: scale(1.4); 
+            -webkit-backdrop-filter: scale(1.4);
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            display: none;
+            background: transparent;
+            border: none;
+        }
+
+        /* ANALYZING CAPTION */
+        #analyzing-caption {
+            position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%);
+            font-size: 2rem; color: #000; text-transform: uppercase;
+            letter-spacing: 5px; z-index: 10000; display: none;
+        }
+
         .red { color: #cc0000; } .yellow { color: #b8860b; } .green { color: #006400; }
     </style>
 </head>
 <body>
 
-<div id="loader"></div>
+<div id="loader-wrap">
+    <div id="fisheye-lens"></div>
+    <div id="three-canvas" style="width:100%; height:100%;"></div>
+    <div id="analyzing-caption">Analyzing<span id="dots"></span></div>
+</div>
 
 <div class="newspaper">
     <div class="header"><h1>THE TRUTH GAZETTE</h1></div>
     <div class="sub-header">
         <span>VOL. CXIV... No. 34,210</span>
-        <span>SIT PUNE,2026</span>
-        <span>PRICE: ONE PAISA </span>
+        <span>LONDON, 1924 / 2024</span>
+        <span>PRICE: ONE PENNY</span>
     </div>
 
-    <input type="text" id="url" placeholder="PASTE ARTICLE URL...">
-    <textarea id="text" rows="3" placeholder="...OR ENTER TEXT BODY"></textarea>
-    <button onclick="investigate()">ANALYZE CONTENT</button>
+    <div id="input-fields">
+        <input type="text" id="url" placeholder="ENTER ARTICLE URL...">
+        <textarea id="text" rows="2" placeholder="...OR ENTER TEXT BODY"></textarea>
+        <button onclick="investigate()">ANALYZE CONTENT</button>
+    </div>
 
     <div id="result" class="result-box">
-        <p style="margin: 0; font-size: 1.2rem;">OFFICIAL VERDICT:</p>
-        <h2 id="resLabel" style="font-size: 3.8rem; margin: 0;"></h2>
-        <h1 id="resScore" style="font-size: 4.8rem; margin: 5px 0;"></h1>
-        <p id="resNote" style="font-style: italic; font-size: 1.1rem;"></p>
-        <button onclick="location.reload()" style="width: auto; padding: 5px 25px; font-size: 1.1rem; margin-top: 15px;">NEW INVESTIGATION</button>
+        <p class="verdict-title">OFFICIAL VERDICT</p>
+        <h2 id="resLabel"></h2>
+        
+        <p class="score-title">THE GAZETTE SCORE™️</p>
+        <h1 id="resScore"></h1>
+        
+        <p id="resNote" style="font-style: italic; font-size: 0.95rem; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;"></p>
+        
+        <button onclick="location.reload()" style="width: auto; padding: 6px 20px; font-size: 1rem; margin-top: 15px;">NEW INVESTIGATION</button>
     </div>
 </div>
 
 <script>
-    let scene, camera, renderer, glass;
+    let scene, camera, renderer, glass, lensDiv, dotInterval;
 
     function init3D() {
-        const container = document.getElementById('loader');
-        container.innerHTML = "";
+        const wrap = document.getElementById('loader-wrap');
+        const caption = document.getElementById('analyzing-caption');
+        const dotSpan = document.getElementById('dots');
+        lensDiv = document.getElementById('fisheye-lens');
+        
+        wrap.style.display = 'block';
+        lensDiv.style.display = 'block';
+        caption.style.display = 'block';
+
+        // Animate the dots . -> .. -> ...
+        let dotCount = 0;
+        dotInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            dotSpan.innerText = ".".repeat(dotCount);
+        }, 500);
+
+        const canvasZone = document.getElementById('three-canvas');
+        canvasZone.innerHTML = "";
+
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
         renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setClearColor(0x000000, 0); 
         renderer.setSize(window.innerWidth, window.innerHeight);
-        container.appendChild(renderer.domElement);
+        canvasZone.appendChild(renderer.domElement);
 
         glass = new THREE.Group();
-        const lens = new THREE.Mesh(
-            new THREE.SphereGeometry(1.2, 32, 32, 0, Math.PI * 2, 0, 0.5),
-            new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, ior: 2.3, thickness: 0.5 })
-        );
-        lens.rotation.x = Math.PI/2;
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.07, 16, 100), new THREE.MeshBasicMaterial({color: 0x000000}));
-        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.8), new THREE.MeshBasicMaterial({color: 0x000000}));
-        handle.position.y = -2.2;
-        glass.add(lens); glass.add(rim); glass.add(handle);
+        
+        const lensGeom = new THREE.SphereGeometry(1.3, 32, 32, 0, Math.PI * 2, 0, 0.5);
+        const lensMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff, transmission: 1.0, ior: 1.5, thickness: 0.2, roughness: 0.02, transparent: true, opacity: 0.6
+        });
+        const lensMesh = new THREE.Mesh(lensGeom, lensMat);
+        lensMesh.rotation.x = Math.PI / 2;
+        
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.08, 16, 100), new THREE.MeshBasicMaterial({color: 0x000000}));
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.0), new THREE.MeshBasicMaterial({color: 0x000000}));
+        handle.position.y = -2.5;
+        
+        glass.add(lensMesh); glass.add(rim); glass.add(handle);
         scene.add(glass);
-        scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+        scene.add(new THREE.AmbientLight(0xffffff, 2.5));
         camera.position.z = 8;
 
         function animate() {
-            if(container.style.display === 'none') return;
+            if(wrap.style.display === 'none') return;
             requestAnimationFrame(animate);
-            const t = Date.now() * 0.0008;
-            // Figure-8 Path
-            glass.position.x = Math.sin(t) * 5.5; 
-            glass.position.y = Math.cos(t * 2) * 2.8; 
-            glass.rotation.z -= 0.015;
+            
+            const t = Date.now() * 0.001;
+            // FIGURE-8 PATH
+            glass.position.x = Math.sin(t) * 5.2; 
+            glass.position.y = Math.sin(t * 2) * 2.5; 
+            glass.rotation.z = Math.cos(t) * 0.2;
+
+            const vector = glass.position.clone().project(camera);
+            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+            
+            lensDiv.style.left = `${x}px`;
+            lensDiv.style.top = `${y}px`;
+
             renderer.render(scene, camera);
         }
         animate();
@@ -108,8 +191,10 @@
     async function investigate() {
         const content = document.getElementById('url').value || document.getElementById('text').value;
         if(!content) return;
-        document.getElementById('loader').style.display = 'block';
+        
+        document.getElementById('input-fields').style.display = 'none'; // Hide inputs to make room
         init3D();
+
         try {
             const response = await fetch('/analyze', {
                 method: 'POST',
@@ -117,19 +202,24 @@
                 body: JSON.stringify({ content: content })
             });
             const data = await response.json();
+
             setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
+                document.getElementById('loader-wrap').style.display = 'none';
+                clearInterval(dotInterval);
                 document.body.style.filter = 'grayscale(0%)';
                 document.getElementById('result').style.display = 'block';
+                
                 document.getElementById('resLabel').innerText = data.label;
                 document.getElementById('resLabel').className = data.color;
-                document.getElementById('resScore').innerText = data.score + "%";
+                document.getElementById('resScore').innerText = data.score;
                 document.getElementById('resScore').className = data.color;
                 document.getElementById('resNote').innerText = data.note;
-            }, 3000);
+            }, 3800);
         } catch(e) {
-            document.getElementById('loader').style.display = 'none';
-            alert("The Gazette's telegraph is down. Please try again.");
+            document.getElementById('loader-wrap').style.display = 'none';
+            document.getElementById('input-fields').style.display = 'block';
+            clearInterval(dotInterval);
+            alert("Error connecting.");
         }
     }
 </script>
