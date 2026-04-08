@@ -6,10 +6,19 @@ import re
 import warnings
 from newspaper import Article, Config
 
+# Silence warnings for a clean terminal
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = Flask(__name__)
-pipeline = joblib.load('models/full_model_pipeline.pkl')
+
+# 1. LOAD THE MODEL
+MODEL_PATH = 'models/full_model_pipeline.pkl'
+if os.path.exists(MODEL_PATH):
+    pipeline = joblib.load(MODEL_PATH)
+    print("AI Model loaded successfully!")
+else:
+    pipeline = None
+    print("ERROR: Model file not found. Run train_model.py first!")
 
 def stealth_scrape(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'}
@@ -17,28 +26,40 @@ def stealth_scrape(url):
         config = Config()
         config.browser_user_agent = headers['User-Agent']
         article = Article(url, config=config)
-        article.download(); article.parse()
+        article.download()
+        article.parse()
         return article.text if len(article.text) > 50 else article.title
-    except: return None
+    except:
+        return None
 
 def get_heuristic_adjustment(text):
     text = text.upper()
     adj = 0
     
-    # RUMOR & SCANDAL MARKERS (Strong Penalty)
-    rumor_words = ["WHISPERING", "MANY ARE SAYING", "SEEMS THE", "COMING TO LIGHT", "MYSTERIOUS", "UNIDENTIFIED", "PRIVATE DINNER", "LURKING", "SECRET DEAL", "ALLEGEDLY", "RUMORS"]
-    for word in rumor_words:
-        if word in text: adj -= 15 # Each word found penalizes the score
+    # 🎭 SATIRE & MEME HANDLES (Instant Red)
+    satire_handles = ["RIYAL NEWS", "FAUXY", "THE IRONIC TIMES", "RVCJ", "REAL NEWS INDIA"]
+    for handle in satire_handles:
+        if handle in text: adj -= 70
 
-    # SCIENTIFIC & ACADEMIC MARKERS (Strong Boost)
-    science_words = ["SCIENTIFIC", "STUDY", "RESEARCH", "PEER-REVIEWED", "JOURNAL", "CLINICAL", "EVIDENCE", "DATA SHOWS", "PUBLISHED IN", "EXPERIMENT", "ANALYSIS OF", "OBSERVED"]
-    for word in science_words:
-        if word in text: adj += 15
+    # 🧪 LOGICAL INCONSISTENCY (Singer + Sports Retirement)
+    singers = ["ARIJIT SINGH", "NEHA KAKKAR", "BADSHAH", "SHREYA GHOSHAL", "SONU NIGAM"]
+    sports_terms = ["TEST CRICKET", "RETIREMENT", "IPL", "ICC", "FORMAT", "BOWLING", "BATTING"]
+    if any(s in text for s in singers) and any(sp in text for sp in sports_terms):
+        adj -= 60
 
-    # CONSPIRACY/CLICKBAIT MARKERS
-    if "CURE" in text and "CANCER" in text: adj -= 40
-    if "BIG PHARMA" in text or "HIDING" in text: adj -= 30
-    if text.count('!') > 2: adj -= 15
+    # ✅ INSTITUTIONAL BOOST (Official news)
+    inst_boost = ["IMF", "INTERNATIONAL MONETARY FUND", "RESERVE BANK", "FISCAL YEAR", "QUARTERLY REPORT"]
+    for word in inst_boost:
+        if word in text: adj += 35
+
+    # 🚩 SPECULATIVE PENALTY (Rumors)
+    speculative = ["WHISPERING", "MYSTERIOUS", "UNIDENTIFIED", "COMING TO LIGHT", "SECRET DEAL", "RUMORS"]
+    for word in speculative:
+        if word in text: adj -= 20
+
+    # ❌ COMMON FAKE PHRASES
+    if "CURE CANCER" in text or "BIG PHARMA" in text or "SPREAD THE WORD" in text:
+        adj -= 50
         
     return adj
 
@@ -48,40 +69,45 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    if not pipeline:
+        return jsonify({"error": "Model not loaded"}), 500
+
     data = request.json
     content = data.get("content", "").strip()
     
+    # 1. Scraping
     if content.startswith('http'):
         text_to_analyze = stealth_scrape(content)
         if not text_to_analyze: text_to_analyze = content
     else:
         text_to_analyze = content
 
-    # 1. BASE AI SCORE
+    # 2. Base AI Score
     decision = pipeline.decision_function([text_to_analyze])[0]
-    base_score = int(100 / (1 + math.exp(-decision)))
+    score = int(100 / (1 + math.exp(-decision)))
 
-    # 2. HEURISTIC ADJUSTMENT
+    # 3. Initial "Short Text" Caution
+    if len(text_to_analyze.split()) < 20 and score > 60:
+        score -= 10
+
+    # 4. Apply Adjustments
     adj = get_heuristic_adjustment(text_to_analyze)
-    score = max(5, min(98, base_score + adj))
+    score = max(5, min(98, score + adj))
 
-    # 3. DOMAIN OVERRIDES
-    satire = ['theonion.com', 'babylonbee.com']
-    trusted = ['reuters.com', 'bbc.com', 'apnews.com', 'thehindu.com', 'nature.com', 'pib.gov.in', 'science.org']
+    # 5. Domain Overrides
+    content_lower = content.lower()
+    if any(d in content_lower for d in ['nature.com', 'bbc.com', 'reuters.com', 'apnews.com']):
+        score = max(score, 94)
+    if any(d in content_lower for d in ['theonion.com', 'babylonbee.com', 'riyalnews']):
+        score = 15
 
-    if any(d in content.lower() for d in satire):
-        score, label, color, note = 15, "FAKE (SATIRE)", "red", "Known parody source detected."
-    elif any(d in content.lower() for d in trusted):
-        score = max(score, 94) # Force high credibility for Nature/Reuters/etc
-        label, color, note = "CREDIBLE", "green", "Verified high-authority domain detected."
+    # 6. Final Result Mapping
+    if score <= 39:
+        label, color, note = "FAKE", "red", "Sensationalist patterns or parody detected."
+    elif score <= 64: 
+        label, color, note = "SUSPICIOUS", "yellow", "Unverified claims or speculative tone detected."
     else:
-        # Final Scoring Logic
-        if score <= 39:
-            label, color, note = "FAKE", "red", "Sensationalist or speculative patterns detected."
-        elif score <= 59:
-            label, color, note = "SUSPICIOUS", "yellow", "Mixed signals. Contains unverified rumors or biased language."
-        else:
-            label, color, note = "CREDIBLE", "green", "Matches patterns of factual, evidence-based reporting."
+        label, color, note = "CREDIBLE", "green", "Matches patterns of factual, professional reporting."
 
     return jsonify({"label": label, "score": score, "color": color, "note": note})
 
