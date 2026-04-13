@@ -36,28 +36,28 @@ def get_heuristic_adjustment(text):
     text = text.upper()
     adj = 0
     
-    # 🎭 SATIRE & MEME HANDLES (Instant Red)
+    # SATIRE & MEME HANDLES (Instant Red)
     satire_handles = ["RIYAL NEWS", "FAUXY", "THE IRONIC TIMES", "RVCJ", "REAL NEWS INDIA"]
     for handle in satire_handles:
         if handle in text: adj -= 70
 
-    # 🧪 LOGICAL INCONSISTENCY (Singer + Sports Retirement)
+    # LOGICAL INCONSISTENCY
     singers = ["ARIJIT SINGH", "NEHA KAKKAR", "BADSHAH", "SHREYA GHOSHAL", "SONU NIGAM"]
     sports_terms = ["TEST CRICKET", "RETIREMENT", "IPL", "ICC", "FORMAT", "BOWLING", "BATTING"]
     if any(s in text for s in singers) and any(sp in text for sp in sports_terms):
         adj -= 60
 
-    # ✅ INSTITUTIONAL BOOST (Official news)
+    # INSTITUTIONAL BOOST (Official news)
     inst_boost = ["IMF", "INTERNATIONAL MONETARY FUND", "RESERVE BANK", "FISCAL YEAR", "QUARTERLY REPORT"]
     for word in inst_boost:
         if word in text: adj += 35
 
-    # 🚩 SPECULATIVE PENALTY (Rumors)
+    # SPECULATIVE PENALTY (Rumors)
     speculative = ["WHISPERING", "MYSTERIOUS", "UNIDENTIFIED", "COMING TO LIGHT", "SECRET DEAL", "RUMORS"]
     for word in speculative:
         if word in text: adj -= 20
 
-    # ❌ COMMON FAKE PHRASES
+    # COMMON FAKE PHRASES
     if "CURE CANCER" in text or "BIG PHARMA" in text or "SPREAD THE WORD" in text:
         adj -= 50
         
